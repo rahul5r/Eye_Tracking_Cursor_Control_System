@@ -18,16 +18,18 @@ pyautogui.FAILSAFE = False
 
 screen_width, screen_height = pyautogui.size()
 
-# Default Corner Points
-# corner_points = [(331, 298), (479, 294), (348, 356), (431, 353)]
 corner_points = []
 corner_labels = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+
+# Default Corner Points
+# corner_points = [(331, 298), (479, 294), (348, 356), (431, 353)]      # Left Eye
+# corner_points = [(492, 365), (633, 375), (557, 411), (645, 422)]      # Right Eye
 
 def get_domnant_eye():
     print("Enter your Domant Eye : ")
     print("1. Left Eye (Mouse Control with Left Eye and Clicking with Right Eye)")
     print("2. Right Eye (Mouse Control with Right Eye and Clicking with Left Eye)")
-    choice = int(input("Enter your choice (1 or 2) : "))
+    choice = 2 # int(input("Enter your choice (1 or 2) : "))
     
     if choice == 1:
         return LEFT_EYE_PUPIL_INDEX
@@ -35,7 +37,6 @@ def get_domnant_eye():
         return RIGHT_EYE_PUPIL_INDEX
     else :
         get_domnant_eye()
-    
 
 def check_blink(landmarks):
     left_eye = abs(landmarks[0][1] - landmarks[1][1])
@@ -66,7 +67,7 @@ def resizeFrame(frame, scale=1.5):
 
     return cv2.resize(frame,dimensions,interpolation=cv2.INTER_AREA)
 
-
+prev_x, prev_y = 0,0
 PUPIL_INDEX = get_domnant_eye()
 
 while cap.isOpened():
@@ -128,11 +129,17 @@ while cap.isOpened():
                 if min_x <= pupil_x <= max_x and min_y <= pupil_y <= max_y:
                     mapped_x = map_range(pupil_x, min_x, max_x, 0, screen_width)
                     mapped_y = map_range(pupil_y, min_y, max_y, 0, screen_height)
+                    
+                    alpha = 0.5  # smoothing factor, smaller values mean more smoothing
+                    smooth_x = alpha * mapped_x + (1 - alpha) * prev_x
+                    smooth_y = alpha * mapped_y + (1 - alpha) * prev_y
+                    
 
                     try:
-                        pyautogui.moveTo(int(mapped_x), int(mapped_y))
+                        pyautogui.moveTo(int(smooth_x), int(smooth_y))
                     except pyautogui.FailSafeException:
                         pyautogui.moveTo(0, 0)
+                    prev_x, prev_y = smooth_x, smooth_y
 
     if len(corner_points) < 4:
         cv2.putText(image, f'Look at {corner_labels[len(corner_points)]} corner and press "c"', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
