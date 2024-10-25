@@ -30,9 +30,9 @@ def get_domnant_eye():
     choice = int(input("Enter your choice (1 or 2) : "))
     
     if choice == 1:
-        return LEFT_EYE_PUPIL_INDEX, eye_landmarks['right']
+        return LEFT_EYE_PUPIL_INDEX
     elif choice == 2:
-        return RIGHT_EYE_PUPIL_INDEX, eye_landmarks['left']
+        return RIGHT_EYE_PUPIL_INDEX
     else :
         get_domnant_eye()
     
@@ -67,7 +67,7 @@ def resizeFrame(frame, scale=1.5):
     return cv2.resize(frame,dimensions,interpolation=cv2.INTER_AREA)
 
 
-PUPIL_INDEX, eyelid_landmarks = get_domnant_eye()
+PUPIL_INDEX = get_domnant_eye()
 
 while cap.isOpened():
     success, image = cap.read()
@@ -99,7 +99,12 @@ while cap.isOpened():
                 lm = face_landmarks.landmark[indices]
                 x, y = int(lm.x * w), int(lm.y * h)
                 landmarks.append([x,y])
-                cv2.circle(image, (x, y), 3, (0, 255, 0), -1)
+                if PUPIL_INDEX == RIGHT_EYE_PUPIL_INDEX:
+                    if eye_part == 'Top Left Eyelid' or eye_part == 'Bottom Left Eyelid':
+                        cv2.circle(image, (x, y), 3, (0, 255, 0), -1)
+                else:
+                    if eye_part == 'Top Right Eyelid' or eye_part == 'Bottom Right Eyelid':
+                        cv2.circle(image, (x, y), 3, (0, 255, 0), -1)
 
             blink = check_blink(landmarks)
             if blink:
