@@ -28,7 +28,7 @@ def capture_eye_position(pupil_x, pupil_y):
         print(f"Captured corner point {len(corner_points)}: {pupil_x}, {pupil_y}")
 
 def check_box_size(top_left, bottom_right):
-    # print(top_left, top_right)
+    print(top_left, bottom_right)
     pass
 
 
