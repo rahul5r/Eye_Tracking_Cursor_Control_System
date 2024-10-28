@@ -110,6 +110,7 @@ while cap.isOpened():
             blink = check_blink(landmarks)
             if blink:
                 print("Blink Detected..")
+                pyautogui.click()
                 cv2.putText(image, "Blink Detected.. ", (20, 120), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 2)
 
             if cv2.waitKey(1) & 0xFF == ord('c'):
@@ -130,11 +131,10 @@ while cap.isOpened():
                     mapped_x = map_range(pupil_x, min_x, max_x, 0, screen_width)
                     mapped_y = map_range(pupil_y, min_y, max_y, 0, screen_height)
                     
-                    alpha = 0.5  # smoothing factor, smaller values mean more smoothing
+                    alpha = 0.1  # smoothing factor, smaller values mean more smoothing
                     smooth_x = alpha * mapped_x + (1 - alpha) * prev_x
                     smooth_y = alpha * mapped_y + (1 - alpha) * prev_y
                     
-
                     try:
                         pyautogui.moveTo(int(smooth_x), int(smooth_y))
                     except pyautogui.FailSafeException:
@@ -152,4 +152,5 @@ while cap.isOpened():
         break
 
 cap.release()
+
 cv2.destroyAllWindows()
