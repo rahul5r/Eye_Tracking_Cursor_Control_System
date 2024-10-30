@@ -5,7 +5,7 @@ import pyautogui
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True, min_detection_confidence=0.7)
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 # Important landmarks
 LEFT_EYE_PUPIL_INDEX = 468
