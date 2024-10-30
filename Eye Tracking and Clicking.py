@@ -35,8 +35,6 @@ def get_domnant_eye():
         return LEFT_EYE_PUPIL_INDEX
     elif choice == 2:
         return RIGHT_EYE_PUPIL_INDEX
-    else :
-        get_domnant_eye()
 
 def check_blink(landmarks):
     left_eye = abs(landmarks[0][1] - landmarks[1][1])
