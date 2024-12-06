@@ -129,7 +129,7 @@ while cap.isOpened():
                     mapped_x = map_range(pupil_x, min_x, max_x, 0, screen_width)
                     mapped_y = map_range(pupil_y, min_y, max_y, 0, screen_height)
                     
-                    alpha = 0.1  # smoothing factor, smaller values mean more smoothing
+                    alpha = 0.5  # smoothing factor, smaller values mean more smoothing
                     smooth_x = alpha * mapped_x + (1 - alpha) * prev_x
                     smooth_y = alpha * mapped_y + (1 - alpha) * prev_y
                     

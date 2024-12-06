@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Video Stream</title>
+    <title>Eye Tracking Cursor Control</title>
     <script>
         function startTracking() {
             fetch('/start', { method: 'POST' })
@@ -30,8 +30,8 @@
 </head>
 <body>
     <h1>Eye Tracking Cursor Control</h1>
-    <button onclick="startTracking()">Start Streaming</button>
-    <button onclick="stopTracking()">Stop Streaming</button>
+    <button onclick="startTracking()">Start Tracking</button>
+    <button onclick="stopTracking()">Stop Tracking</button>
     <br><br>
     <img id="video" src="" width="50%"/>
 </body>

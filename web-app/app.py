@@ -78,7 +78,7 @@ def index():
     return render_template('index.html')
 
 def generate_frames():
-    global tracking_active
+    global tracking_active, prev_x, prev_y
     while tracking_active:
         success, frame = camera.read()
         if not success:
@@ -130,8 +130,11 @@ def generate_frames():
                     min_y = min([pt[1] for pt in corner_points])
                     max_y = max([pt[1] for pt in corner_points])
 
-                    box_top_left = (min_x, min_y)
-                    box_bottom_right = (max_x, max_y)
+                    bounding_box_width = screen_width * 0.3
+                    bounding_box_height = screen_height * 0.3
+
+                    box_top_left = (int(w / 2 - bounding_box_width / 2), int(h / 2 - bounding_box_height / 2))
+                    box_bottom_right = (int(w / 2 + bounding_box_width / 2), int(h / 2 + bounding_box_height / 2))
 
                     cv2.rectangle(image, box_top_left, box_bottom_right, (255, 0, 0), 2)
 
@@ -148,7 +151,6 @@ def generate_frames():
                         except pyautogui.FailSafeException:
                             pyautogui.moveTo(0, 0)
                         prev_x, prev_y = smooth_x, smooth_y
-
         if len(corner_points) < 4:
             cv2.putText(image, f'Look at {corner_labels[len(corner_points)]} corner and press "c"', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         else:
@@ -185,3 +187,4 @@ def stop_tracking():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
