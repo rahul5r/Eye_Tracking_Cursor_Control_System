@@ -20,9 +20,9 @@ pyautogui.FAILSAFE = False
 
 screen_width, screen_height = pyautogui.size()
 
-# Bounding box dimensions (30% of the screen size)
-bounding_box_width = screen_width * 0.3
-bounding_box_height = screen_height * 0.3
+# Bounding box dimensions
+bounding_box_width = screen_width * 0.1
+bounding_box_height = screen_height * 0.1
 
 prev_x, prev_y = 0, 0
 PUPIL_INDEX = RIGHT_EYE_PUPIL_INDEX  # Default to right eye for demonstration
@@ -30,7 +30,7 @@ PUPIL_INDEX = RIGHT_EYE_PUPIL_INDEX  # Default to right eye for demonstration
 def map_range(value, from_min, from_max, to_min, to_max):
     return (value - from_min) * (to_max - to_min) / (from_max - from_min) + to_min
 
-def resize_frame(frame, scale=1.5):
+def resize_frame(frame, scale=1):
     width = int(frame.shape[1] * scale)
     height = int(frame.shape[0] * scale)
     return cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
@@ -42,8 +42,8 @@ def check_blink(landmarks):
     left_eye = abs(landmarks[0][1] - landmarks[1][1])
     right_eye = abs(landmarks[2][1] - landmarks[3][1])
     
-    # Thresholds for blinking (adjust if necessary)
-    blink_threshold = 4
+    # Thresholds for blinking
+    blink_threshold = 20
     if left_eye < blink_threshold and right_eye < blink_threshold:
         return False  # Both eyes closed
     elif left_eye < blink_threshold and PUPIL_INDEX == RIGHT_EYE_PUPIL_INDEX:
@@ -86,6 +86,12 @@ def generate_frames():
                     lm = face_landmarks.landmark[index]
                     x, y = int(lm.x * w), int(lm.y * h)
                     landmarks.append([x, y])
+                    if PUPIL_INDEX == RIGHT_EYE_PUPIL_INDEX:
+                        if eye_part == 'Top Left Eyelid' or eye_part == 'Bottom Left Eyelid':
+                            cv2.circle(image, (x, y), 3, (0, 255, 0), -1)
+                    else:
+                        if eye_part == 'Top Right Eyelid' or eye_part == 'Bottom Right Eyelid':
+                            cv2.circle(image, (x, y), 3, (0, 255, 0), -1)
 
                 blink = check_blink(landmarks)
                 if blink:
@@ -128,15 +134,18 @@ def video_feed():
 
 @app.route('/start', methods=['POST'])
 def start_tracking():
-    global tracking_active
+    global tracking_active, camera
+    if not camera.isOpened():  # Check if the camera is not already open
+        camera = cv2.VideoCapture(0)
     tracking_active = True
     return "Tracking started", 200
 
 @app.route('/stop', methods=['POST'])
 def stop_tracking():
-    global tracking_active
+    global tracking_active, camera
     tracking_active = False
-    camera.release()
+    if camera.isOpened():
+        camera.release()
     return "Tracking stopped", 200
 
 if __name__ == '__main__':
