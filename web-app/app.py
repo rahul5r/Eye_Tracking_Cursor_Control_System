@@ -36,6 +36,8 @@ def index():
 @app.route('/calibration', methods=['GET', 'POST'])
 def calibration():
     global dominant_eye, corner_points, PUPIL_INDEX
+    
+    corner_points = []
     if request.method == 'POST':
         if 'dominant_eye' in request.form:
             dominant_eye = request.form['dominant_eye']
@@ -57,11 +59,9 @@ def generate_video_stream():
         if not ret:
             break
 
-        # Encode the frame in JPEG format
         _, buffer = cv2.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
 
-        # Yield the frame as a byte stream
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
@@ -77,10 +77,8 @@ def generate_video_stream_with_pupil():
         if not ret:
             break
 
-        # Flip the frame horizontally for a mirror effect
         frame = cv2.flip(frame, 1)
 
-        # Convert to RGB for MediaPipe
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         results = face_mesh.process(rgb_image)
@@ -97,11 +95,9 @@ def generate_video_stream_with_pupil():
 
                 cv2.circle(frame, (pupil_x, pupil_y), 5, (0, 255, 0), -1)
 
-        # Encode the frame as JPEG
         _, buffer = cv2.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
 
-        # Yield the frame for streaming
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
@@ -112,13 +108,13 @@ def calibration_corners():
     print(f"Using PUPIL_INDEX: {PUPIL_INDEX}")
 
     if request.method == 'POST':
-        corner_label = corner_labels[len(corner_points)]
         ret, frame = cap.read()
 
         if not ret:
             return "Error: Could not capture frame", 500
         
         frame = cv2.flip(frame, 1)
+        frame = resize_frame(frame)
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         results = face_mesh.process(rgb_image)
@@ -148,9 +144,9 @@ def calibration_corners():
     else:
         return redirect(url_for('tracking'))
 
-
 @app.route('/tracking')
 def tracking():
+    update_bounding_box_ratio()
     return render_template('tracking.html')
 
 @app.route('/start', methods=['POST'])
@@ -198,7 +194,36 @@ def check_blink(landmarks):
         return True  # Left eye controlling cursor, right eye used for clicking
     else:
         return None
-    
+
+def update_bounding_box_ratio():
+    global corner_points, bounding_box_ratio
+
+    if len(corner_points) != 4:
+        print("Error: Insufficient corner points for bounding box calculation.")
+        return
+
+    x_coords = [pt[0] for pt in corner_points]
+    y_coords = [pt[1] for pt in corner_points]
+
+    # Calculate bounding box dimensions
+    min_x, max_x = min(x_coords), max(x_coords)
+    min_y, max_y = min(y_coords), max(y_coords)
+    box_width = max_x - min_x
+    box_height = max_y - min_y
+
+    # Update the bounding box ratio relative to the screen dimensions
+    screen_width, screen_height = pyautogui.size()
+    width_ratio = box_width / screen_width
+    height_ratio = box_height / screen_height
+
+    # Use the larger of the two ratios for consistency
+    bounding_box_ratio = max(width_ratio, height_ratio)
+    if bounding_box_ratio < 0.1:
+        bounding_box_ratio = 0.1
+    if bounding_box_ratio > 0.7:
+        bounding_box_ratio = 0.7
+    print(f"Updated bounding_box_ratio: {bounding_box_ratio}")
+
 def generate_frames():
     global tracking_active, prev_x, prev_y, bounding_box_ratio
     print(bounding_box_ratio)
