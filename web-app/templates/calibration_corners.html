@@ -2,42 +2,13 @@
 <html>
 <head>
     <title>Calibration - Corners</title>
-    <style>
-        /* Flip the video horizontally */
-        #video {
-            transform: scaleX(-1);
-        }
-    </style>
-    <script>
-        function captureCorner() {
-            const video = document.getElementById('video');
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0);
-            const rect = video.getBoundingClientRect();
-            const x = Math.round(rect.left + rect.width / 2);
-            const y = Math.round(rect.top + rect.height / 2);
-            document.getElementById('corner_x').value = x;
-            document.getElementById('corner_y').value = y;
-            document.getElementById('cornerForm').submit();
-        }
-    </script>
 </head>
 <body>
     <h1>Calibration - Look at {{ corner_label }} corner</h1>
-    <video id="video" autoplay></video>
-    <form id="cornerForm" method="POST" action="/calibration/corners">
-        <input type="hidden" id="corner_x" name="corner_x">
-        <input type="hidden" id="corner_y" name="corner_y">
-        <button type="button" onclick="captureCorner()">Capture</button>
+    <!-- Embed the live video feed -->
+    <img id="video_feed" src="/video_feed_corner" style="width: 640px; height: 480px;" alt="Video Feed">
+    <form method="POST" action="/calibration/corners">
+        <button type="submit">Capture</button>
     </form>
-    <script>
-        navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
-            const video = document.getElementById('video');
-            video.srcObject = stream;
-        });
-    </script>
 </body>
 </html>

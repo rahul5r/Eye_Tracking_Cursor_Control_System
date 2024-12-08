@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response, request, redirect, url_for
+from flask import Flask, render_template, Response, request, redirect, url_for, jsonify
 import cv2
 import pyautogui
 import mediapipe as mp
@@ -11,8 +11,23 @@ camera = cv2.VideoCapture(0)
 
 tracking_active = False
 dominant_eye = None
+bounding_box_ratio = 0.1
 corner_points = []
 corner_labels = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+
+
+LEFT_EYE_PUPIL_INDEX = 468
+RIGHT_EYE_PUPIL_INDEX = 473
+eye_landmarks = {
+    'Top Left Eyelid': 159, 'Bottom Left Eyelid': 145,
+    'Top Right Eyelid': 386, 'Bottom Right Eyelid': 374,
+}
+pyautogui.FAILSAFE = False
+
+screen_width, screen_height = pyautogui.size()
+
+prev_x, prev_y = 0, 0
+
 
 @app.route('/')
 def index():
@@ -20,25 +35,119 @@ def index():
 
 @app.route('/calibration', methods=['GET', 'POST'])
 def calibration():
-    global dominant_eye, corner_points
+    global dominant_eye, corner_points, PUPIL_INDEX
     if request.method == 'POST':
         if 'dominant_eye' in request.form:
             dominant_eye = request.form['dominant_eye']
+            if str(dominant_eye) == "left":
+                print("left eye dominant")
+                PUPIL_INDEX = LEFT_EYE_PUPIL_INDEX
+            else:
+                print("right eye dominant")
+                PUPIL_INDEX = RIGHT_EYE_PUPIL_INDEX
             return redirect(url_for('calibration_corners'))
     return render_template('calibration.html')
 
+cap = cv2.VideoCapture(0)
+
+def generate_video_stream():
+    global cap
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Encode the frame in JPEG format
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
+
+        # Yield the frame as a byte stream
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+@app.route('/video_feed_corner')
+def video_feed_corner():
+    return Response(generate_video_stream_with_pupil(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+def generate_video_stream_with_pupil():
+    global cap, face_mesh, PUPIL_INDEX
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Flip the frame horizontally for a mirror effect
+        frame = cv2.flip(frame, 1)
+
+        # Convert to RGB for MediaPipe
+        rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        results = face_mesh.process(rgb_image)
+
+        h, w, _ = frame.shape
+
+
+        if results.multi_face_landmarks:
+            for face_landmarks in results.multi_face_landmarks:
+                pupil = face_landmarks.landmark[PUPIL_INDEX]
+                pupil_x = int(pupil.x * w)
+                pupil_y = int(pupil.y * h)
+
+
+                cv2.circle(frame, (pupil_x, pupil_y), 5, (0, 255, 0), -1)
+
+        # Encode the frame as JPEG
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
+
+        # Yield the frame for streaming
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+
 @app.route('/calibration/corners', methods=['GET', 'POST'])
 def calibration_corners():
-    global corner_points
+    global corner_points, cap, PUPIL_INDEX
+    print(f"Using PUPIL_INDEX: {PUPIL_INDEX}")
+
     if request.method == 'POST':
-        if 'corner_x' in request.form and 'corner_y' in request.form:
-            corner_x = int(request.form['corner_x'])
-            corner_y = int(request.form['corner_y'])
-            corner_points.append((corner_x, corner_y))
-            if len(corner_points) == 4:
-                print(corner_points)
-                return redirect(url_for('tracking'))
-    return render_template('calibration_corners.html', corner_label=corner_labels[len(corner_points)])
+        corner_label = corner_labels[len(corner_points)]
+        ret, frame = cap.read()
+
+        if not ret:
+            return "Error: Could not capture frame", 500
+        
+        frame = cv2.flip(frame, 1)
+        rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        results = face_mesh.process(rgb_image)
+
+        h, w, _ = frame.shape
+        print("Landmarks detected:", bool(results.multi_face_landmarks))
+
+
+        if results.multi_face_landmarks:
+            for face_landmarks in results.multi_face_landmarks:
+                pupil = face_landmarks.landmark[PUPIL_INDEX]
+                pupil_x = int(pupil.x * w)
+                pupil_y = int(pupil.y * h)
+
+                cv2.circle(frame, (pupil_x, pupil_y), 5, (0, 255, 0), -1)
+
+        center_x, center_y = w // 2, h // 2
+        corner_points.append((center_x, center_y))
+
+        if len(corner_points) == 4:
+            print("Calibration points:", corner_points)
+            cap.release()
+            return redirect(url_for('tracking'))
+    
+    if len(corner_points) <= 4:
+        return render_template('calibration_corners.html', corner_label=corner_labels[len(corner_points)])
+    else:
+        return redirect(url_for('tracking'))
+
 
 @app.route('/tracking')
 def tracking():
@@ -63,23 +172,6 @@ def video_feed():
     if tracking_active:
         return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
     return "Tracking not active", 200
-
-LEFT_EYE_PUPIL_INDEX = 468
-RIGHT_EYE_PUPIL_INDEX = 473
-eye_landmarks = {
-    'Top Left Eyelid': 159, 'Bottom Left Eyelid': 145,
-    'Top Right Eyelid': 386, 'Bottom Right Eyelid': 374,
-}
-pyautogui.FAILSAFE = False
-
-screen_width, screen_height = pyautogui.size()
-
-# Bounding box dimensions
-bounding_box_width = screen_width * 0.1
-bounding_box_height = screen_height * 0.1
-
-prev_x, prev_y = 0, 0
-PUPIL_INDEX = RIGHT_EYE_PUPIL_INDEX  # Default to right eye for demonstration
 
 def map_range(value, from_min, from_max, to_min, to_max):
     return (value - from_min) * (to_max - to_min) / (from_max - from_min) + to_min
@@ -108,7 +200,13 @@ def check_blink(landmarks):
         return None
     
 def generate_frames():
-    global tracking_active, prev_x, prev_y
+    global tracking_active, prev_x, prev_y, bounding_box_ratio
+    print(bounding_box_ratio)
+
+    # Bounding box dimensions
+    bounding_box_width = screen_width * bounding_box_ratio
+    bounding_box_height = screen_height * bounding_box_ratio
+
     while tracking_active:
         success, frame = camera.read()
         if not success:
