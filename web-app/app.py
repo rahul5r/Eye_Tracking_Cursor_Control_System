@@ -7,14 +7,13 @@ mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True, min_detection_confidence=0.7)
 
 app = Flask(__name__)
-camera = cv2.VideoCapture(0)
+camera = None
 
 tracking_active = False
 dominant_eye = None
 bounding_box_ratio = 0.1
 corner_points = []
 corner_labels = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
-
 
 LEFT_EYE_PUPIL_INDEX = 468
 RIGHT_EYE_PUPIL_INDEX = 473
@@ -85,7 +84,6 @@ def generate_video_stream_with_pupil():
 
         h, w, _ = frame.shape
 
-
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
                 pupil = face_landmarks.landmark[PUPIL_INDEX]
@@ -100,7 +98,6 @@ def generate_video_stream_with_pupil():
 
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-
 
 @app.route('/calibration/corners', methods=['GET', 'POST'])
 def calibration_corners():
@@ -138,9 +135,11 @@ def calibration_corners():
             print("Calibration points:", corner_points)
             cap.release()
             return redirect(url_for('tracking'))
-    
+    corner_visible = corner_labels[len(corner_points)] 
     if len(corner_points) <= 4:
-        return render_template('calibration_corners.html', corner_label=corner_labels[len(corner_points)])
+        return render_template('calibration_corners.html', 
+                           corner_label=corner_labels[len(corner_points)], 
+                           corner_visible=corner_visible)
     else:
         return redirect(url_for('tracking'))
 
@@ -151,20 +150,25 @@ def tracking():
 
 @app.route('/start', methods=['POST'])
 def start_tracking():
-    global tracking_active
+    global tracking_active, camera
+    if camera is None or not camera.isOpened():
+        camera = cv2.VideoCapture(0)
+
     tracking_active = True
+    print("Tracking Status : ", tracking_active)
     return "Tracking started", 200
 
 @app.route('/stop', methods=['POST'])
 def stop_tracking():
     global tracking_active
     tracking_active = False
-    camera.release()
+    print("Tracking Status : ", tracking_active)
     return "Tracking stopped", 200
 
 @app.route('/video_feed')
 def video_feed():
     global tracking_active
+    print("Tracking Status : ",tracking_active)
     if tracking_active:
         return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
     return "Tracking not active", 200
@@ -178,14 +182,11 @@ def resize_frame(frame, scale=1):
     return cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
 
 def check_blink(landmarks):
-    """
-    Detect blink by checking the vertical distance between the eyelids.
-    """
     left_eye = abs(landmarks[0][1] - landmarks[1][1])
     right_eye = abs(landmarks[2][1] - landmarks[3][1])
     
     # Thresholds for blinking
-    blink_threshold = 20
+    blink_threshold = 15
     if left_eye < blink_threshold and right_eye < blink_threshold:
         return False  # Both eyes closed
     elif left_eye < blink_threshold and PUPIL_INDEX == RIGHT_EYE_PUPIL_INDEX:
@@ -199,7 +200,7 @@ def update_bounding_box_ratio():
     global corner_points, bounding_box_ratio
 
     if len(corner_points) != 4:
-        print("Error: Insufficient corner points for bounding box calculation.")
+        print("Error: Insufficient corner points for bounding box calculation.") 
         return
 
     x_coords = [pt[0] for pt in corner_points]
@@ -300,4 +301,4 @@ def generate_frames():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=8000)
