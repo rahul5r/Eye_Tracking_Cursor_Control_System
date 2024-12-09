@@ -21,8 +21,8 @@ pyautogui.FAILSAFE = False
 screen_width, screen_height = pyautogui.size()
 
 # Bounding box dimensions (30% of the screen size)
-bounding_box_width = screen_width * 0.3
-bounding_box_height = screen_height * 0.3
+bounding_box_width = screen_width * 0.1
+bounding_box_height = screen_height * 0.1
 
 prev_x, prev_y = 0, 0
 PUPIL_INDEX = RIGHT_EYE_PUPIL_INDEX  # Default to right eye for demonstration
