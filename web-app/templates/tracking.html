@@ -30,16 +30,16 @@
         button {
             padding: 10px 20px;
             font-size: 1.2rem;
-            color: #fff; /* White text for contrast */
-            background-color: #007BFF; /* Modern blue color */
+            color: #fff;
+            background-color: #007BFF;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Lighter shadow for modern feel */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         button:hover {
-            background-color: #0056b3; /* Darker blue on hover */
+            background-color: #0056b3;
             transform: scale(1.05);
         }
         button:active {
@@ -47,37 +47,36 @@
         }
         #video {
             width: 60%;
-            border: 3px solid #007BFF; /* Blue border for consistency */
+            border: 3px solid #007BFF;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Lighter shadow for depth */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
     </style>
     <script src="https://cdn.socket.io/4.0.1/socket.io.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const socket = io(); // Establish connection with SocketIO
+            const socket = io();
 
-            // Listen for server events
             socket.on("tracking_status", function(data) {
                 if (data.status === "start") {
                     console.log("Tracking Started - Refreshing page...");
                     startTracking();
                 } else if (data.status === "stop") {
                     console.log("Tracking Stopped - Refreshing page...");
-                    window.location.reload(); // Refresh the page
+                    window.location.reload();
                 }
             });
         });
     </script>
     <script>
-        let videoFeedAvailable = false; // Flag to track if the video feed is available
-
+        let videoFeedAvailable = false;
+        
         function startTracking() {
             fetch('/start', { method: 'POST' })
                 .then(response => {
                     if (response.ok) {
                         console.log("Tracking started");
-                        videoFeedAvailable = true; // Feed is available after starting tracking
+                        videoFeedAvailable = true;
                         updateVideoFeed();
                     } else {
                         console.error("Failed to start tracking");

@@ -1,13 +1,12 @@
 import threading
 import time
-import requests
 import speech_recognition as sr
 from flask import Flask, render_template, Response, request, redirect, url_for, jsonify
 import cv2
 import pyautogui
 import mediapipe as mp
 import signal
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
 
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True, min_detection_confidence=0.7)
@@ -176,13 +175,11 @@ def voice_command_listener():
             command = recognizer.recognize_google(audio).lower()
             print(f"Voice command recognized: {command}")
 
-            if "start tracking" in command:
+            if "start" in command:
                 print("Voice command detected: Start Tracking")
-                requests.post("http://127.0.0.1:5000/start")
                 socketio.emit("voice_command", {"message": "Start Tracking"})
-            elif "stop tracking" in command:
+            elif "stop" in command:
                 print("Voice command detected: Stop Tracking")
-                requests.post("http://127.0.0.1:5000/stop")
                 socketio.emit("voice_command", {"message": "Start Tracking"})
 
         except sr.UnknownValueError:
