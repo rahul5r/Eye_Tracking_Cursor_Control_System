@@ -52,22 +52,6 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
     </style>
-    <script src="https://cdn.socket.io/4.0.1/socket.io.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const socket = io();
-
-            socket.on("tracking_status", function(data) {
-                if (data.status === "start") {
-                    console.log("Tracking Started - Refreshing page...");
-                    startTracking();
-                } else if (data.status === "stop") {
-                    console.log("Tracking Stopped - Refreshing page...");
-                    window.location.reload();
-                }
-            });
-        });
-    </script>
     <script>
         let videoFeedAvailable = false;
         

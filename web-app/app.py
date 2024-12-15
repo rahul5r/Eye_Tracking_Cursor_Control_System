@@ -1,12 +1,8 @@
-import threading
 import time
-import speech_recognition as sr
 from flask import Flask, render_template, Response, request, redirect, url_for, jsonify
 import cv2
 import pyautogui
 import mediapipe as mp
-import signal
-from flask_socketio import SocketIO
 
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True, min_detection_confidence=0.7)
@@ -31,11 +27,6 @@ pyautogui.FAILSAFE = False
 screen_width, screen_height = pyautogui.size()
 
 prev_x, prev_y = 0, 0
-
-VOICE_RECOGNITION_ACTIVE = False
-
-socketio = SocketIO(app, cors_allowed_origins="*")
-shutdown_event = threading.Event()
 
 
 @app.route('/')
@@ -157,47 +148,12 @@ def tracking():
     update_bounding_box_ratio()
     return render_template('tracking.html')
 
-def voice_command_listener():
-    global VOICE_RECOGNITION_ACTIVE
-    recognizer = sr.Recognizer()
-    microphone = sr.Microphone()
-    VOICE_RECOGNITION_ACTIVE = True
-
-    print("Voice recognition thread started.")
-    while VOICE_RECOGNITION_ACTIVE:
-        try:
-            with microphone as source:
-                print("Listening for voice commands...")
-                recognizer.adjust_for_ambient_noise(source)
-                audio = recognizer.listen(source)
-
-            # Recognize speech using Google Speech API
-            command = recognizer.recognize_google(audio).lower()
-            print(f"Voice command recognized: {command}")
-
-            if "start" in command:
-                print("Voice command detected: Start Tracking")
-                socketio.emit("voice_command", {"message": "Start Tracking"})
-            elif "stop" in command:
-                print("Voice command detected: Stop Tracking")
-                socketio.emit("voice_command", {"message": "Start Tracking"})
-
-        except sr.UnknownValueError:
-            print("Could not understand the audio. Waiting for the next command.")
-        except sr.RequestError as e:
-            print(f"Speech Recognition API error: {e}")
-        except Exception as e:
-            print(f"Voice recognition error: {e}")
-
-        time.sleep(1)
 
 @app.route('/start', methods=['POST'])
 def start_tracking():
     global tracking_active, camera
     if camera is None or not camera.isOpened():
         camera = cv2.VideoCapture(0)
-
-    socketio.emit("tracking_status", {"status": "start"})
 
     tracking_active = True
     print("Tracking Status : ", tracking_active)
@@ -208,7 +164,6 @@ def start_tracking():
 def stop_tracking():
     global tracking_active
     tracking_active = False
-    socketio.emit("tracking_status", {"status": "stop"})
     print("Tracking Status : ", tracking_active)
     return "Tracking stopped", 200
 
@@ -232,7 +187,7 @@ def check_blink(landmarks):
     left_eye = abs(landmarks[0][1] - landmarks[1][1])
     right_eye = abs(landmarks[2][1] - landmarks[3][1])
     
-    # Thresholds for blinking
+    # Threshold for blinking
     blink_threshold = 15
     if left_eye < blink_threshold and right_eye < blink_threshold:
         return False  # Both eyes closed
@@ -346,20 +301,5 @@ def generate_frames():
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + image + b'\r\n')
 
-def handle_shutdown_signal(*args):
-    print("Shutdown signal received. Cleaning up resources...")
-    shutdown_event.set()  # Signal the thread to stop
-    time.sleep(1)  # Wait for the thread to exit
-    socketio.stop()
-    print("Cleanup complete. Exiting.")
-
-signal.signal(signal.SIGINT, handle_shutdown_signal)
-
 if __name__ == '__main__':
-    voice_thread = threading.Thread(target=voice_command_listener, daemon=True)
-    voice_thread.start()
-
     app.run(debug=True)
-
-    VOICE_RECOGNITION_ACTIVE = False
-    voice_thread.join()
