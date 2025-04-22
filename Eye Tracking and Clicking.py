@@ -29,7 +29,7 @@ def get_domnant_eye():
     print("Enter your Domant Eye : ")
     print("1. Left Eye (Mouse Control with Left Eye and Clicking with Right Eye)")
     print("2. Right Eye (Mouse Control with Right Eye and Clicking with Left Eye)")
-    choice = 2 # int(input("Enter your choice (1 or 2) : "))
+    choice = int(input("Enter your choice (1 or 2) : "))
     
     if choice == 1:
         return LEFT_EYE_PUPIL_INDEX
